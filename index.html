@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>かんたん家計簿</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background-color: #F7F3EA;
+    background-image: repeating-linear-gradient(180deg, transparent, transparent 27px, rgba(30,42,68,0.045) 28px);
+    color: #1E2A44;
+    min-height: 100vh;
+    padding-bottom: 64px;
+  }
+  .font-display { font-family: 'Noto Serif JP', serif; }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  .wrap { max-width: 560px; margin: 0 auto; padding: 0 16px; }
+
+  /* cover */
+  .cover {
+    background: linear-gradient(155deg, #1E2A44 0%, #263654 55%, #1B2740 100%);
+    padding: 32px 16px 64px;
+  }
+  .cover .eyebrow { font-family:'Noto Serif JP',serif; color:#C9A94E; font-size:11px; letter-spacing:.3em; margin:0 0 4px; }
+  .cover h1 { font-family:'Noto Serif JP',serif; color:#F7F3EA; font-size:26px; font-weight:700; margin:0; }
+  .cover p.sub { color:#AEB8CE; font-size:12px; margin:8px 0 0; }
+  .month-nav { display:flex; align-items:center; justify-content:space-between; margin-top:32px; }
+  .month-nav button { background:none; border:none; color:#F7F3EA; opacity:.85; cursor:pointer; padding:8px; font-size:20px; line-height:1; }
+  .month-nav button:hover { opacity:1; }
+  .month-nav .label { font-family:'Noto Serif JP',serif; color:#F7F3EA; font-size:18px; letter-spacing:.02em; }
+
+  .content { margin-top: -40px; }
+
+  .card { background:#FFFDF7; border:1px solid #DED5BC; border-radius:2px; box-shadow:0 1px 3px rgba(30,42,68,0.08); padding:20px; position:relative; }
+  .card + .card, .section + .card, .card + .section { margin-top:24px; }
+  .section { margin-top:24px; }
+
+  .muted { color:#4C5C7D; }
+  .muted-xs { color:#4C5C7D; font-size:12px; }
+
+  .stamp {
+    position:absolute; top:-14px; right:14px; width:84px; height:84px; border-radius:50%;
+    border:3px double #B23B3B; color:#B23B3B; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    transform:rotate(-9deg); mix-blend-mode:multiply; opacity:.9; background:rgba(178,59,59,0.04);
+  }
+  .stamp.negative { border-color:#8A8577; color:#8A8577; background:rgba(138,133,119,0.05); }
+  .stamp-kanji { font-family:'Noto Serif JP',serif; font-weight:900; font-size:22px; line-height:1; }
+  .stamp-sub { font-size:9px; letter-spacing:.1em; margin-top:2px; }
+
+  .net-amount { font-family:'Noto Serif JP',serif; font-size:32px; font-weight:700; margin:4px 0 0; }
+  .net-amount.positive { color:#3F6B4F; }
+  .net-amount.negative { color:#A6483C; }
+
+  .summary-row { display:flex; gap:24px; margin-top:16px; padding-top:16px; border-top:1px solid #DED5BC; }
+  .summary-row .lbl { font-size:12px; color:#4C5C7D; }
+  .summary-row .val { font-size:14px; font-weight:500; margin-top:2px; }
+
+  /* trend */
+  .trend-title { font-size:12px; color:#4C5C7D; margin:0 0 8px 4px; }
+  .trend-bars { display:flex; align-items:flex-end; justify-content:space-between; gap:8px; height:110px; padding:0 4px; }
+  .trend-col { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; background:none; border:none; cursor:pointer; padding:0; }
+  .trend-val { font-size:10px; color:#4C5C7D; margin-bottom:4px; }
+  .trend-track { width:100%; height:80px; background:rgba(30,42,68,0.06); border-radius:2px 2px 0 0; display:flex; align-items:flex-end; }
+  .trend-fill { width:100%; border-radius:2px 2px 0 0; }
+  .trend-fill.pos { background:#3F6B4F; }
+  .trend-fill.neg { background:#A6483C; }
+  .trend-month { font-size:10px; margin-top:4px; color:#4C5C7D; }
+  .trend-month.selected { color:#1E2A44; font-weight:700; }
+
+  /* form */
+  .type-toggle { display:flex; gap:8px; margin-bottom:12px; }
+  .type-toggle button { flex:1; border:1px solid #DED5BC; background:#FFFDF7; color:#4C5C7D; border-radius:2px; padding:10px; font-size:14px; cursor:pointer; font-family:inherit; }
+  .type-toggle button.active-expense { background:#1E2A44; border-color:#1E2A44; color:#F7F3EA; }
+  .type-toggle button.active-income { background:#3F6B4F; border-color:#3F6B4F; color:#F7F3EA; }
+
+  .form-row { display:flex; gap:8px; margin-bottom:12px; }
+  input[type="date"], input[type="number"], input[type="text"] {
+    border:1px solid #DED5BC; border-radius:2px; padding:10px 12px; font-size:14px; color:#1E2A44; font-family:inherit; background:#FFFDF7;
+  }
+  input[type="date"] { width:40%; }
+  input[type="number"] { width:60%; }
+  .form-row input[type="text"] { width:100%; }
+  .full-input { width:100%; margin-bottom:8px; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px; }
+  .chip { border:1px solid #DED5BC; color:#4C5C7D; background:#FFFDF7; font-size:12px; padding:5px 10px; border-radius:999px; cursor:pointer; font-family:inherit; }
+  .chip:hover { border-color:#B23B3B; color:#B23B3B; }
+
+  .btn-primary { width:100%; background:#1E2A44; color:#F7F3EA; border:none; border-radius:2px; padding:12px; font-size:14px; font-weight:500; cursor:pointer; font-family:inherit; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .btn-primary:hover { background:#263654; }
+
+  /* ledger */
+  .ledger-header { display:flex; align-items:center; justify-content:space-between; padding:0 4px 8px; }
+  .gear-btn { background:none; border:none; font-size:16px; cursor:pointer; color:#4C5C7D; padding:4px; }
+  .gear-btn:hover { color:#1E2A44; }
+
+  .ledger-card { background:#FFFDF7; border:1px solid #DED5BC; border-radius:2px; box-shadow:0 1px 3px rgba(30,42,68,0.08); overflow:hidden; }
+  .empty-state { padding:32px; text-align:center; }
+  .empty-state p { margin:0; font-size:14px; color:#4C5C7D; }
+  .empty-state p.small { font-size:12px; margin-top:4px; }
+
+  .ledger-row { display:flex; align-items:center; gap:12px; padding:12px 16px; }
+  .ledger-row + .ledger-row { border-top:1px dashed #DED5BC; }
+  .ledger-date { width:56px; font-size:11px; color:#4C5C7D; flex-shrink:0; }
+  .ledger-main { flex:1; min-width:0; }
+  .ledger-memo { font-size:14px; margin:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ledger-balance { font-size:10px; color:#4C5C7D; margin:2px 0 0; }
+  .ledger-amount { font-size:14px; font-weight:500; flex-shrink:0; }
+  .ledger-amount.income { color:#3F6B4F; }
+  .ledger-amount.expense { color:#A6483C; }
+  .del-btn { background:none; border:none; color:#4C5C7D; font-size:11px; cursor:pointer; flex-shrink:0; padding:4px; font-family:inherit; }
+  .del-btn:hover { color:#A6483C; }
+
+  .error-msg { color:#A6483C; font-size:12px; text-align:center; margin-top:16px; }
+
+  /* modal */
+  .modal-overlay { position:fixed; inset:0; background:rgba(30,42,68,0.4); display:flex; align-items:center; justify-content:center; padding:16px; z-index:50; }
+  .modal { background:#FFFDF7; border-radius:2px; box-shadow:0 4px 16px rgba(0,0,0,0.2); width:100%; max-width:380px; padding:20px; position:relative; }
+  .modal-close { position:absolute; top:12px; right:12px; background:none; border:none; font-size:18px; cursor:pointer; color:#4C5C7D; }
+  .modal h2 { font-family:'Noto Serif JP',serif; font-size:16px; margin:0 0 16px; }
+  .modal label { font-size:12px; color:#4C5C7D; display:block; margin-bottom:4px; }
+  .modal-divider { border-top:1px solid #DED5BC; margin-top:16px; padding-top:16px; }
+  .link-danger { color:#A6483C; font-size:12px; background:none; border:none; text-decoration:underline; cursor:pointer; padding:0; font-family:inherit; }
+  .confirm-row { display:flex; gap:8px; margin-top:8px; }
+  .confirm-row button { flex:1; border-radius:2px; padding:8px; font-size:12px; cursor:pointer; font-family:inherit; }
+  .btn-danger { background:#A6483C; color:#fff; border:none; }
+  .btn-cancel { background:#FFFDF7; border:1px solid #DED5BC; color:#1E2A44; }
+
+  @media (max-width: 380px) {
+    .cover h1 { font-size:22px; }
+    .net-amount { font-size:26px; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- storage keys ---------- */
+  var LS_ENTRIES = "kakeibo:entries";
+  var LS_OPENING = "kakeibo:openingBalance";
+
+  /* ---------- helpers ---------- */
+  function todayStr() { return new Date().toISOString().slice(0, 10); }
+  function monthKeyOf(d) { return d.slice(0, 7); }
+  function currentMonthKey() { return todayStr().slice(0, 7); }
+  function shiftMonth(key, delta) {
+    var parts = key.split("-").map(Number);
+    var d = new Date(parts[0], parts[1] - 1 + delta, 1);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+  }
+  function monthLabel(key) {
+    var p = key.split("-").map(Number);
+    return p[0] + "年" + p[1] + "月";
+  }
+  function shortMonthLabel(key) {
+    var p = key.split("-").map(Number);
+    return p[1] + "月";
+  }
+  function yen(n) { return "¥" + Math.round(n).toLocaleString("ja-JP"); }
+  function newId() {
+    return (Date.now().toString(16) + Math.random().toString(16).slice(2));
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  var MEMO_CHIPS = ["クレカ支払い", "現金引き出し", "給与", "賞与", "その他"];
+
+  /* ---------- state ---------- */
+  var state = {
+    entries: [],
+    openingBalance: 0,
+    selectedMonth: currentMonthKey(),
+    showSettings: false,
+    confirmReset: false,
+    formType: "expense",
+    formDate: todayStr(),
+    loadError: false,
+    saveError: false
+  };
+
+  function load() {
+    try {
+      var e = localStorage.getItem(LS_ENTRIES);
+      state.entries = e ? JSON.parse(e) : [];
+      var ob = localStorage.getItem(LS_OPENING);
+      state.openingBalance = ob ? JSON.parse(ob) : 0;
+    } catch (err) {
+      state.loadError = true;
+      state.entries = [];
+      state.openingBalance = 0;
+    }
+  }
+
+  function persist() {
+    try {
+      localStorage.setItem(LS_ENTRIES, JSON.stringify(state.entries));
+      localStorage.setItem(LS_OPENING, JSON.stringify(state.openingBalance));
+      state.saveError = false;
+    } catch (err) {
+      state.saveError = true;
+    }
+  }
+
+  /* ---------- derived data ---------- */
+  function getSortedWithBalance() {
+    var sorted = state.entries.slice().sort(function (a, b) {
+      if (a.date === b.date) return a.createdAt - b.createdAt;
+      return a.date < b.date ? -1 : 1;
+    });
+    var bal = state.openingBalance;
+    return sorted.map(function (e) {
+      bal += e.type === "income" ? e.amount : -e.amount;
+      return Object.assign({}, e, { balance: bal });
+    });
+  }
+
+  function getMonthEntries(withBalance, mk) {
+    return withBalance.filter(function (e) { return monthKeyOf(e.date) === mk; });
+  }
+
+  function sumBy(list, type) {
+    return list.filter(function (e) { return e.type === type; })
+      .reduce(function (s, e) { return s + e.amount; }, 0);
+  }
+
+  function getTrendMonths(selMonth) {
+    var arr = [];
+    for (var i = 5; i >= 0; i--) arr.push(shiftMonth(selMonth, -i));
+    return arr;
+  }
+
+  function getTrendData() {
+    var months = getTrendMonths(state.selectedMonth);
+    return months.map(function (mk) {
+      var inMonth = state.entries.filter(function (e) { return monthKeyOf(e.date) === mk; });
+      var inc = sumBy(inMonth, "income");
+      var exp = sumBy(inMonth, "expense");
+      return { month: mk, net: inc - exp };
+    });
+  }
+
+  /* ---------- render ---------- */
+  function render() {
+    var withBalance = getSortedWithBalance();
+    var monthEntries = getMonthEntries(withBalance, state.selectedMonth);
+    var monthIncome = sumBy(monthEntries, "income");
+    var monthExpense = sumBy(monthEntries, "expense");
+    var monthNet = monthIncome - monthExpense;
+    var trend = getTrendData();
+    var maxAbs = Math.max.apply(null, [1].concat(trend.map(function (d) { return Math.abs(d.net); })));
+
+    var html = "";
+
+    /* cover */
+    html += '<div class="cover"><div class="wrap">';
+    html += '<p class="eyebrow">PASSBOOK</p>';
+    html += '<h1>かんたん家計簿</h1>';
+    html += '<p class="sub">毎月の収支と、口座に残ったお金の記録</p>';
+    html += '<div class="month-nav">';
+    html += '<button data-action="prev-month" aria-label="前の月">&#8249;</button>';
+    html += '<span class="label">' + monthLabel(state.selectedMonth) + '</span>';
+    html += '<button data-action="next-month" aria-label="次の月">&#8250;</button>';
+    html += '</div></div></div>';
+
+    html += '<div class="wrap content">';
+
+    /* summary card */
+    var stampNeg = monthNet < 0;
+    html += '<div class="card">';
+    html += '<div class="stamp' + (stampNeg ? ' negative' : '') + '">';
+    html += '<span class="stamp-kanji">' + (stampNeg ? "赤字" : "貯金") + '</span>';
+    html += '<span class="stamp-sub">' + (stampNeg ? "MINUS" : "SAVED") + '</span></div>';
+    html += '<p class="muted-xs">この月に口座へ残ったお金</p>';
+    html += '<p class="net-amount tabular ' + (stampNeg ? "negative" : "positive") + '">';
+    html += (stampNeg ? "－" : "＋") + yen(Math.abs(monthNet)) + '</p>';
+    html += '<div class="summary-row">';
+    html += '<div><div class="lbl">収入</div><div class="val tabular">' + yen(monthIncome) + '</div></div>';
+    html += '<div><div class="lbl">支出（カード・引出し等）</div><div class="val tabular">' + yen(monthExpense) + '</div></div>';
+    html += '</div></div>';
+
+    /* trend */
+    html += '<div class="section">';
+    html += '<p class="trend-title">直近6ヶ月の貯金額</p>';
+    html += '<div class="trend-bars">';
+    trend.forEach(function (d) {
+      var h = Math.max(4, (Math.abs(d.net) / maxAbs) * 80);
+      var isSel = d.month === state.selectedMonth;
+      var isNeg = d.net < 0;
+      html += '<button class="trend-col" data-action="select-month" data-month="' + d.month + '">';
+      html += '<span class="trend-val tabular">' + (d.net !== 0 ? yen(d.net).replace("¥", "") : "") + '</span>';
+      html += '<div class="trend-track"><div class="trend-fill ' + (isNeg ? "neg" : "pos") + '" style="height:' + h + 'px;opacity:' + (isSel ? 1 : 0.55) + '"></div></div>';
+      html += '<span class="trend-month' + (isSel ? " selected" : "") + '">' + shortMonthLabel(d.month) + '</span>';
+      html += '</button>';
+    });
+    html += '</div></div>';
+
+    /* form */
+    html += '<form class="card section" id="entry-form">';
+    html += '<div class="type-toggle">';
+    html += '<button type="button" data-action="set-type" data-type="expense" class="' + (state.formType === "expense" ? "active-expense" : "") + '">支出</button>';
+    html += '<button type="button" data-action="set-type" data-type="income" class="' + (state.formType === "income" ? "active-income" : "") + '">収入</button>';
+    html += '</div>';
+    html += '<div class="form-row">';
+    html += '<input type="date" id="f-date" value="' + state.formDate + '">';
+    html += '<input type="number" id="f-amount" inputmode="decimal" min="0" step="1" placeholder="金額">';
+    html += '</div>';
+    html += '<input type="text" id="f-memo" class="full-input" placeholder="メモ（任意）">';
+    html += '<div class="chips">';
+    MEMO_CHIPS.forEach(function (c) {
+      html += '<button type="button" class="chip" data-action="fill-chip" data-memo="' + escapeHtml(c) + '">' + escapeHtml(c) + '</button>';
+    });
+    html += '</div>';
+    html += '<button type="submit" class="btn-primary">＋ 記帳する</button>';
+    html += '</form>';
+
+    /* ledger */
+    html += '<div class="section">';
+    html += '<div class="ledger-header"><p class="muted-xs" style="margin:0">' + monthLabel(state.selectedMonth) + 'の記帳</p>';
+    html += '<button class="gear-btn" data-action="open-settings" aria-label="設定">&#9881;</button></div>';
+    html += '<div class="ledger-card">';
+    if (monthEntries.length === 0) {
+      html += '<div class="empty-state"><p>この月の記帳はまだありません。</p><p class="small">上のフォームから収入・支出を追加してください。</p></div>';
+    } else {
+      monthEntries.slice().reverse().forEach(function (e) {
+        html += '<div class="ledger-row">';
+        html += '<div class="ledger-date tabular">' + e.date.slice(5).replace("-", "/") + '</div>';
+        html += '<div class="ledger-main"><p class="ledger-memo">' + escapeHtml(e.memo || (e.type === "income" ? "収入" : "支出")) + '</p>';
+        html += '<p class="ledger-balance tabular">残高 ' + yen(e.balance) + '</p></div>';
+        html += '<div class="ledger-amount tabular ' + e.type + '">' + (e.type === "income" ? "＋" : "－") + yen(e.amount) + '</div>';
+        html += '<button class="del-btn" data-action="delete-entry" data-id="' + e.id + '">削除</button>';
+        html += '</div>';
+      });
+    }
+    html += '</div></div>';
+
+    if (state.loadError || state.saveError) {
+      html += '<p class="error-msg">データの' + (state.loadError ? "読み込み" : "保存") + 'に失敗しました。もう一度お試しください。</p>';
+    }
+
+    html += '</div>'; // .wrap.content
+
+    /* settings modal */
+    if (state.showSettings) {
+      html += '<div class="modal-overlay" data-action="overlay-close">';
+      html += '<div class="modal" id="modal-inner">';
+      html += '<button class="modal-close" data-action="close-settings">&times;</button>';
+      html += '<h2>設定</h2>';
+      html += '<label>開始時点の口座残高（任意）</label>';
+      html += '<input type="number" id="ob-input" class="full-input tabular" value="' + state.openingBalance + '">';
+      html += '<button class="btn-primary" data-action="save-ob" style="margin-bottom:0">保存</button>';
+      html += '<div class="modal-divider">';
+      if (!state.confirmReset) {
+        html += '<button class="link-danger" data-action="request-reset">すべてのデータを削除する</button>';
+      } else {
+        html += '<p style="font-size:12px;margin:0 0 4px">本当にすべての記帳データを削除しますか？元に戻せません。</p>';
+        html += '<div class="confirm-row">';
+        html += '<button class="btn-danger" data-action="confirm-reset">削除する</button>';
+        html += '<button class="btn-cancel" data-action="cancel-reset">キャンセル</button>';
+        html += '</div>';
+      }
+      html += '</div></div></div>';
+    }
+
+    document.getElementById("app").innerHTML = html;
+    attachEvents();
+  }
+
+  /* ---------- events ---------- */
+  function attachEvents() {
+    var app = document.getElementById("app");
+
+    app.addEventListener("click", onClick);
+
+    var form = document.getElementById("entry-form");
+    if (form) form.addEventListener("submit", onSubmit);
+
+    var modalInner = document.getElementById("modal-inner");
+    if (modalInner) modalInner.addEventListener("click", function (e) { e.stopPropagation(); });
+  }
+
+  function onClick(e) {
+    var el = e.target.closest("[data-action]");
+    if (!el) return;
+    var action = el.getAttribute("data-action");
+
+    switch (action) {
+      case "prev-month":
+        state.selectedMonth = shiftMonth(state.selectedMonth, -1);
+        render();
+        break;
+      case "next-month":
+        state.selectedMonth = shiftMonth(state.selectedMonth, 1);
+        render();
+        break;
+      case "select-month":
+        state.selectedMonth = el.getAttribute("data-month");
+        render();
+        break;
+      case "set-type":
+        state.formType = el.getAttribute("data-type");
+        render();
+        break;
+      case "fill-chip":
+        var memoInput = document.getElementById("f-memo");
+        if (memoInput) memoInput.value = el.getAttribute("data-memo");
+        break;
+      case "delete-entry":
+        var id = el.getAttribute("data-id");
+        state.entries = state.entries.filter(function (en) { return en.id !== id; });
+        persist();
+        render();
+        break;
+      case "open-settings":
+        state.confirmReset = false;
+        state.showSettings = true;
+        render();
+        break;
+      case "close-settings":
+        state.showSettings = false;
+        render();
+        break;
+      case "overlay-close":
+        state.showSettings = false;
+        render();
+        break;
+      case "save-ob":
+        var obInput = document.getElementById("ob-input");
+        var v = obInput ? parseFloat(obInput.value) : 0;
+        state.openingBalance = isNaN(v) ? 0 : v;
+        state.showSettings = false;
+        persist();
+        render();
+        break;
+      case "request-reset":
+        state.confirmReset = true;
+        render();
+        break;
+      case "cancel-reset":
+        state.confirmReset = false;
+        render();
+        break;
+      case "confirm-reset":
+        state.entries = [];
+        state.openingBalance = 0;
+        state.showSettings = false;
+        state.confirmReset = false;
+        persist();
+        render();
+        break;
+    }
+  }
+
+  function onSubmit(e) {
+    e.preventDefault();
+    var dateEl = document.getElementById("f-date");
+    var amountEl = document.getElementById("f-amount");
+    var memoEl = document.getElementById("f-memo");
+
+    var date = dateEl ? dateEl.value : "";
+    var amount = amountEl ? parseFloat(amountEl.value) : NaN;
+    var memo = memoEl ? memoEl.value.trim() : "";
+
+    if (!date || !amount || amount <= 0) return;
+
+    state.entries.push({
+      id: newId(),
+      date: date,
+      type: state.formType,
+      amount: amount,
+      memo: memo,
+      createdAt: Date.now()
+    });
+    state.formDate = date;
+    persist();
+    render();
+  }
+
+  /* ---------- init ---------- */
+  load();
+  render();
+})();
+</script>
+</body>
+</html>
